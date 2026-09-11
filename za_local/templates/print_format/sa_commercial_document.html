@@ -23,9 +23,12 @@
 {% set posting_date = doc.get("posting_date") or doc.get("transaction_date") %}
 {% set company_doc = frappe.get_doc("Company", doc.company) if doc.get("company") and frappe.db.exists("Company", doc.company) else None %}
 {% set party_doc = frappe.get_doc(party_doctype, party) if party and frappe.db.exists(party_doctype, party) else None %}
-{% set company_vat = (company_doc.get("za_vat_number") or company_doc.get("tax_id")) if company_doc else "" %}
-{% set party_vat = party_doc.get("tax_id") if party_doc else "" %}
-{% set company_registration = company_doc.get("company_registration") if company_doc else "" %}
+{% set company_is_vat_registered = True if company_doc and company_doc.get("za_vat_number") else False %}
+{% set company_vat = company_doc.get("za_vat_number") if company_is_vat_registered else "" %}
+{% set party_has_vat_flag_field = party_doc.meta.has_field("za_is_vat_vendor") if party_doc else False %}
+{% set party_is_vat_registered = party_doc.get("za_is_vat_vendor") if party_has_vat_flag_field else (True if party_doc and party_doc.get("tax_id") else False) %}
+{% set party_vat = party_doc.get("tax_id") if party_doc and party_is_vat_registered else "" %}
+{% set company_registration = company_doc.get("za_company_registration") if company_doc else "" %}
 {% set inferred_profile = za_tax_invoice_profile if za_tax_invoice_profile is defined and za_tax_invoice_profile else ("VAT Adjustment Document" if "credit note" in title_key or "debit note" in title_key else ("Supplier Tax Invoice Evidence" if doc.doctype == "Purchase Invoice" else ("Tax Invoice" if "tax invoice" in title_key else "Business Document"))) %}
 {% set is_tax_document = "tax invoice" in title_key or "credit note" in title_key or "debit note" in title_key or doc.doctype == "Purchase Invoice" %}
 {% set document_number_label = za_document_number_label or ("Invoice Number" if "invoice" in title_key else "Document Number") %}
@@ -238,10 +241,10 @@
 				<td>
 					{% if supplier_invoice_view %}
 						<span class="heading">{{ _("Supplier VAT Registration No.") }}:</span>
-						{{ party_vat or _("Not provided") }}
+						{{ party_vat or _("Not VAT Registered") }}
 					{% else %}
 						<span class="heading">{{ _("Supplier VAT Registration No.") if party_doctype == "Customer" else _("Company VAT Registration No.") }}:</span>
-						{{ company_vat or _("Not configured") }}
+						{{ company_vat or _("Not VAT Registered") }}
 					{% endif %}
 					{% if not supplier_invoice_view and company_registration %}
 						<br><span class="heading">{{ _("Company Registration No.") }}:</span> {{ company_registration }}
@@ -250,13 +253,13 @@
 				<td>
 					{% if supplier_invoice_view %}
 						<span class="heading">{{ _("Recipient VAT Registration No.") }}:</span>
-						{{ company_vat or _("Not configured") }}
+						{{ company_vat or _("Not VAT Registered") }}
 						{% if company_registration %}
 							<br><span class="heading">{{ _("Company Registration No.") }}:</span> {{ company_registration }}
 						{% endif %}
 					{% else %}
 						<span class="heading">{{ _("Recipient VAT Registration No.") if party_doctype == "Customer" else _("Supplier VAT Registration No.") }}:</span>
-						{{ party_vat or _("Not provided") }}
+						{{ party_vat or _("Not VAT Registered") }}
 					{% endif %}
 					{% if doc.get("po_no") %}
 						<br><span class="heading">{{ _("Customer PO") }}:</span> {{ doc.get("po_no") }}
