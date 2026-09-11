@@ -86,29 +86,54 @@ def calculate_severance_pay(employee, termination_date, termination_type):
 	return weekly_salary * completed_years
 
 
-def calculate_leave_payout_on_termination(employee):
+def calculate_leave_payout_on_termination(employee, date_value):
 	"""
 	Calculate leave payout for untaken annual leave.
 
+	Uses hrms's own leave-balance utility (reads the Leave Ledger, nets out
+	leave already taken, handles carry-forward expiry) rather than summing
+	Leave Allocation directly. A raw allocation sum only ever returns the
+	total EVER allocated, not the remaining/unused balance - it would
+	overstate the payout for any employee who has taken some of their
+	allocated leave (confirmed empirically: a 10-day allocation with 4 days
+	already taken returns 10 from a naive allocation sum vs the correct 6
+	from get_leave_balance_on - a real R7,733.33 overstatement on a
+	R58,000/month salary in that one test case).
+
+	Sums across every Leave Type whose name matches the original '%Annual%'
+	pattern - preserved deliberately, not narrowed to a single hardcoded
+	name, since different clients may name their annual-leave type
+	differently (e.g. "Annual Leave", "Company Annual Leave") and no
+	evidence was found that the broad match was accidental (za_local does
+	not itself seed any "Annual"-named Leave Type, so this has always been
+	a deliberate tolerance for client-defined naming, not a bug).
+
 	Args:
 		employee: Employee ID
+		date_value: date to compute the balance as of. REQUIRED, not defaulted
+			to today - this function is currently unreferenced anywhere in the
+			codebase (confirmed by an exhaustive search across frappe, erpnext,
+			hrms, za_local and qzenta_controls), so a silent "today" default
+			would be a live trap for whoever wires it up later: a settlement
+			processed days or weeks after the actual termination date would
+			incorrectly net out leave taken in the intervening gap. Callers
+			must pass the actual separation/termination date explicitly.
 
 	Returns:
 		dict: {"days": float, "amount": float}
 	"""
-	# Get leave balance
-	leave_balance = frappe.db.sql("""
-		SELECT SUM(total_leave_days) as balance
-		FROM `tabLeave Allocation`
-		WHERE employee = %(employee)s
-			AND docstatus = 1
-			AND leave_type LIKE '%%Annual%%'
-	""", {"employee": employee}, as_dict=1)
+	from hrms.hr.doctype.leave_application.leave_application import get_leave_balance_on
 
-	if not leave_balance or not leave_balance[0].balance:
+	as_of_date = getdate(date_value)
+
+	leave_types = frappe.get_all("Leave Type", filters={"name": ["like", "%Annual%"]}, pluck="name")
+
+	total_days = 0
+	for leave_type in leave_types:
+		total_days += flt(get_leave_balance_on(employee, leave_type, as_of_date))
+
+	if total_days <= 0:
 		return {"days": 0, "amount": 0}
-
-	total_days = flt(leave_balance[0].balance)
 
 	# Get daily rate
 	salary = frappe.get_all(
