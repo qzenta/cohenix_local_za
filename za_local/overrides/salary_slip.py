@@ -634,6 +634,28 @@ class ZASalarySlip(SalarySlip):
             )
         return 0
 
+    def get_opening_for(self, field_to_select, start_date, end_date):
+        """
+        Always honour an explicitly-entered opening balance on the Salary
+        Structure Assignment (`taxable_earnings_till_date` /
+        `tax_deducted_till_date`), regardless of the assignment's own
+        `from_date`.
+
+        Core HRMS (`hrms.payroll.doctype.salary_slip.salary_slip.SalarySlip.
+        get_opening_for`) only reads these fields when
+        `assignment.from_date >= payroll_period.start_date` and silently
+        returns 0 otherwise - discarding a value HR may have deliberately
+        entered (the field's own label describes it as "opening balances
+        ... from the previous employer"; nothing about its intended use is
+        conditional on when the assignment record itself was created).
+        This exists specifically for DEFECT-002: a company/system
+        migration where an employee's Salary Structure Assignment ends up
+        dated to match their real historical `date_of_joining`, not the
+        migration date - the exact case where an opening balance is most
+        needed and most likely to actually be supplied.
+        """
+        return flt(self._salary_structure_assignment.get(field_to_select))
+
     def calculate_net_pay(self, skip_tax_breakup_computation: bool = False):
         """
         Calculate net pay with ETI and company contributions.
@@ -641,10 +663,94 @@ class ZASalarySlip(SalarySlip):
         # Standard net pay calculation
         super().calculate_net_pay(skip_tax_breakup_computation)
 
+        if not skip_tax_breakup_computation:
+            self.guard_against_missing_prior_earnings_history()
+
         self.apply_statutory_deduction_amounts()
 
         # Calculate and apply ETI
         self.apply_eti()
+
+    def guard_against_missing_prior_earnings_history(self):
+        """
+        Fail closed on DEFECT-002: don't let PAYE be silently annualized on
+        a remaining-periods-only basis for an employee who was already
+        employed before this Payroll Period began, when the system has no
+        record of what they earned in the elapsed months.
+
+        `previous_taxable_earnings` (set by core HRMS's
+        `compute_taxable_earnings_for_year`, called from
+        `compute_income_tax_breakup` inside `super().calculate_net_pay()`)
+        is the combined result of (a) a real query of this employee's own
+        submitted Salary Slips for the elapsed months of this Payroll
+        Period, and (b) whatever opening balance `get_opening_for` above
+        now always honours. If it's genuinely 0 for an employee who joined
+        before this period started, the system has no basis for treating
+        this month's annual-equivalent as anything other than
+        understated - so refuse rather than silently compute it.
+
+        Deliberately scoped narrow:
+        - An employee whose `date_of_joining` falls *within* the current
+          Payroll Period is a genuinely new employee, not this scenario,
+          and is left untouched (remaining-periods annualization is the
+          applicable basis for them).
+        - A slip covering the *first* sub-period of the Payroll Period
+          itself (e.g. the March slip of a March-February tax year) is
+          also left untouched: there is no elapsed portion of this fiscal
+          year yet for any history to be missing from, so zero previous
+          earnings is correct there regardless of `date_of_joining`.
+        """
+        if not self.payroll_period or not self.employee or not self.salary_structure:
+            return
+
+        if getdate(self.start_date) <= getdate(self.payroll_period.start_date):
+            return
+
+        joining_date = self.joining_date or frappe.db.get_value(
+            "Employee", self.employee, "date_of_joining"
+        )
+        if not joining_date:
+            return
+
+        if getdate(joining_date) >= getdate(self.payroll_period.start_date):
+            # Genuinely new employee this fiscal year - out of scope for this guard.
+            return
+
+        if flt(self.get("previous_taxable_earnings")) > 0:
+            # Real submitted-slip history or an honoured opening balance already covers it.
+            return
+
+        prior_slip_filters = {
+            "employee": self.employee,
+            "docstatus": 1,
+            "start_date": [">=", self.payroll_period.start_date],
+            "end_date": ["<", self.start_date],
+        }
+        if self.name:
+            # Only meaningful once this slip already has a persisted name (e.g.
+            # a re-save of an existing draft) - excluding `None` would otherwise
+            # turn into a `name != NULL` comparison that matches no rows at all.
+            prior_slip_filters["name"] = ["!=", self.name]
+        has_prior_slips = frappe.db.exists("Salary Slip", prior_slip_filters)
+        if has_prior_slips:
+            return
+
+        frappe.throw(
+            _(
+                "Cannot calculate PAYE for {0}: their date of joining ({1}) is before the start "
+                "of the current Payroll Period ({2}), but no submitted Salary Slips exist for the "
+                "elapsed months of this period, and no opening balance is set on their Salary "
+                "Structure Assignment. Annualizing on the remaining periods alone would understate "
+                "PAYE. Before this slip can be calculated, either submit Salary Slips for the "
+                "missing months, or set 'Taxable Earnings Till Date' / 'Tax Deducted Till Date' on "
+                "the employee's Salary Structure Assignment to the correct opening balance."
+            ).format(
+                self.employee_name or self.employee,
+                frappe.format(joining_date, {"fieldtype": "Date"}),
+                frappe.format(self.payroll_period.start_date, {"fieldtype": "Date"}),
+            ),
+            title=_("Missing Prior Earnings History"),
+        )
 
         # Calculate company contributions
         self.calculate_company_contributions()
