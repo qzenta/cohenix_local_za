@@ -48,6 +48,20 @@ def _get_emp201_bucket(component_name):
 
 
 def _looks_like_legacy_statutory_component(component_name, metadata):
+	"""Flag components that look statutory by name/flag but have never been
+	given a SARS payroll code at all - i.e. genuinely unmapped legacy data.
+
+	A component that already carries *any* za_sars_payroll_code is mapped by
+	definition, even if that code doesn't happen to fall into the PAYE/UIF/
+	SDL/ETI buckets EMP201 aggregates (e.g. 3601 normal income). Without this
+	guard, any correctly-coded component whose name merely contains a
+	substring like "eti" or "sdl" (e.g. "ETI Bonus", "SDL Training Rebate")
+	was incorrectly blocked from EMP201 generation - a false positive against
+	the control's actual intent of catching unmapped legacy components.
+	"""
+	if metadata.get("za_sars_payroll_code"):
+		return False
+
 	component_name_lower = (component_name or "").strip().lower()
 	tokens = (
 		"uif",
