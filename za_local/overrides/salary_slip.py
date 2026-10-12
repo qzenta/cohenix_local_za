@@ -671,6 +671,9 @@ class ZASalarySlip(SalarySlip):
         # Calculate and apply ETI
         self.apply_eti()
 
+        # Calculate company contributions
+        self.calculate_company_contributions()
+
     def guard_against_missing_prior_earnings_history(self):
         """
         Fail closed on DEFECT-002: don't let PAYE be silently annualized on
@@ -751,9 +754,6 @@ class ZASalarySlip(SalarySlip):
             ),
             title=_("Missing Prior Earnings History"),
         )
-
-        # Calculate company contributions
-        self.calculate_company_contributions()
 
     def apply_eti(self):
         """
