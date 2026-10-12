@@ -177,9 +177,12 @@ class TestDefect002AnnualizationGuard(UnitTestCase):
 		"""The core regression guard against DEFECT-002: an employee who
 		predates the fiscal year but has real submitted Salary Slip history for
 		the elapsed months must annualize on the full-year basis unaffected -
-		matching the independently SARS-bracket-verified figure from the
-		original MULTI-001 finding (R9,275.64 for R45,000/month, 5 prior
-		months)."""
+		matching the exact-arithmetic figure for R45,000/month with 5 prior
+		months. The August slip's PAYE is R9,275.58 when computed exactly from
+		the SARS bracket table (independent Decimal oracle:
+		defect004/H-oracle_defect002.py). The earlier R9,275.64 figure in the
+		original MULTI-001 finding was not exact: it carried the DEFECT-004 cents
+		over-deduction from Income Tax Slab band tops ending in .99."""
 		employee = _ensure_employee("history", "2020-01-01")
 		_ensure_assignment(employee, "2026-03-01")
 
@@ -199,4 +202,7 @@ class TestDefect002AnnualizationGuard(UnitTestCase):
 		self.assertEqual(flt(slip.previous_taxable_earnings), 225000.0)
 		self.assertEqual(flt(slip.annual_taxable_amount), 540000.0)
 		paye_row = next(row for row in slip.deductions if row.salary_component == "PAYE")
-		self.assertAlmostEqual(flt(paye_row.amount), 9275.64, places=1)
+		# August 2026 slip PAYE. Expected value from the independent Decimal oracle
+		# defect004/H-oracle_defect002.py (month-by-month Mar to Aug: 9275.58, .58, .58,
+		# .58, .59, .58). places=2 means within 0.005.
+		self.assertAlmostEqual(flt(paye_row.amount), 9275.58, places=2)
