@@ -192,9 +192,17 @@ scheduler_events = {
 
 # Permissions
 # ------------------
-# permission_query_conditions = {
-#     "Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
+# Contact and Address visibility follows the Customer / Supplier they link to
+# (they have no Company field). See za_local/party_link_permissions.py.
+permission_query_conditions = {
+	"Contact": "za_local.party_link_permissions.get_permission_query_conditions",
+	"Address": "za_local.party_link_permissions.get_permission_query_conditions",
+}
+
+has_permission = {
+	"Contact": "za_local.party_link_permissions.has_permission",
+	"Address": "za_local.party_link_permissions.has_permission",
+}
 
 # Document Events for Specific Workflows
 # ------------------
