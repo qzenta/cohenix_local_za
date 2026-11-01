@@ -150,7 +150,16 @@ doc_events = {
 
     # Customer validation for SA VAT numbers
     "Customer": {
-        "validate": "za_local.custom.customer.validate",
+        "validate": [
+            "za_local.custom.customer.validate",
+            # Gate B: Customer Group is mandatory (party_group_validation.py)
+            "za_local.party_group_validation.validate_customer_group",
+        ],
+    },
+
+    # Gate B: Supplier Group is mandatory (party_group_validation.py)
+    "Supplier": {
+        "validate": "za_local.party_group_validation.validate_supplier_group",
     },
 
     # Keep ERPNext's zero-rated item contract aligned with za_local VAT categories
