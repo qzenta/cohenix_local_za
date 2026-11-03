@@ -3,6 +3,8 @@
 import frappe
 from frappe import _
 
+from za_local.utils.payroll_permissions import require_payroll_company_access
+
 
 def execute(filters=None):
 	filters = _validate_filters(filters)
@@ -16,6 +18,7 @@ def _validate_filters(filters):
 	if not filters.company or not filters.from_date or not filters.to_date:
 		frappe.throw(_("Company, From Date, and To Date are required."))
 	frappe.has_permission("Company", "read", doc=filters.company, throw=True)
+	require_payroll_company_access(filters.company)
 	return filters
 
 
