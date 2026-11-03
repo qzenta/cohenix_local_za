@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
+
+from za_local.utils.payroll_permissions import require_payroll_company_access
 from frappe.model.document import Document
 from frappe.utils import add_days, add_years, flt, getdate
 
@@ -70,6 +72,7 @@ class COIDAAnnualReturn(Document):
 		self.check_permission("write")
 		if not self.company or not self.from_date or not self.to_date:
 			frappe.throw(_("Company and assessment period are required to fetch employee data."))
+		require_payroll_company_access(self.company)
 		if not self.industry_class:
 			frappe.throw(_("Select the company's COIDA Industry Class before fetching employee data."))
 
