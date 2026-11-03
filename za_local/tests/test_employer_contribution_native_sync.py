@@ -4,7 +4,7 @@ HRMS posts employer contributions from the slip's native ``employer_contribution
 table came only from Salary Structure formulas on gross pay, so an earning flagged za_uif_applicable=0 or
 za_sdl_applicable=0 was included natively but excluded by za_local (bench-rc run p04-20261103T122118Z: GL over-posted
 by 60.00). ``sync_native_employer_contributions`` replaces the native rows with the final ``company_contribution``
-rows. These tests need no site: the slip is a stub and the component lookup is patched.
+rows. These tests need no site: the slip is a stub, and the component lookup and flt are patched.
 """
 
 import inspect
@@ -42,6 +42,10 @@ class TestEmployerContributionNativeSync(unittest.TestCase):
 		patcher = mock.patch.object(module.frappe, "get_cached_value", side_effect=lambda dt, name, f: name[:3].upper())
 		patcher.start()
 		self.addCleanup(patcher.stop)
+		# frappe.utils.flt(x, precision) reads the site's rounding settings and returns 0.0 without a site
+		flt_patcher = mock.patch.object(module, "flt", side_effect=lambda v, p=None: round(float(v or 0), p if p is not None else 9))
+		flt_patcher.start()
+		self.addCleanup(flt_patcher.stop)
 
 	def test_native_rows_replaced_by_company_contribution_values(self):
 		# native formula rows on gross 12,000 (120/120); za_local statutory basis 10,000 (100/100)
