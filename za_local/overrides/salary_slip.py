@@ -843,6 +843,34 @@ class ZASalarySlip(SalarySlip):
         # Rollup total
         self.apply_statutory_company_contribution_amounts()
         self.total_company_contribution = sum(flt(row.amount) for row in self.get("company_contribution", []))
+        self.sync_native_employer_contributions()
+
+    def sync_native_employer_contributions(self):
+        """Make HRMS post exactly za_local's company contributions.
+
+        HRMS posts employer contributions from the slip's native ``employer_contributions`` table (Payroll Entry
+        ``make_employer_contribution_jv_entry``: expense on the component account, credit on its liability account).
+        That table is otherwise filled from Salary Structure formulas on gross pay, which ignore za_local's statutory
+        basis (UIF/SDL applicability) and rate packs. Replace it with the final ``company_contribution`` rows so each
+        amount is computed once, by za_local, and posted once, by HRMS. Rows of 0 are not posted.
+        """
+        if not self.meta.has_field("employer_contributions"):
+            return
+        self.set("employer_contributions", [])
+        for row in self.get("company_contribution") or []:
+            amount = flt(row.amount, 2)
+            if amount <= 0:
+                continue
+            self.append(
+                "employer_contributions",
+                {
+                    "salary_component": row.salary_component,
+                    "abbr": frappe.get_cached_value("Salary Component", row.salary_component, "salary_component_abbr"),
+                    "amount": amount,
+                    "default_amount": amount,
+                    "depends_on_payment_days": 0,
+                },
+            )
 
     def apply_statutory_deduction_amounts(self):
         uif_basis = self.get_statutory_earning_basis("za_uif_applicable")
