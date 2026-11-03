@@ -42,6 +42,11 @@ def _function_source(path, name):
 	return m.group(0)
 
 
+def _raise(msg, exc=frappe.ValidationError, *args, **kwargs):
+	# frappe.throw cannot build its message without a site; raise the exception class it would raise
+	raise exc(msg)
+
+
 def _helper():
 	from za_local.utils import payroll_permissions
 
@@ -61,6 +66,7 @@ class TestRequirePayrollCompanyAccess(unittest.TestCase):
 			mock.patch.object(mod, "get_user_permissions", return_value=user_perms or {}), \
 			mock.patch.object(mod, "get_role_permissions", return_value={"read": 1 if ss_read else 0}), \
 			mock.patch.object(mod.frappe, "get_meta", return_value=object()), \
+			mock.patch.object(mod.frappe, "throw", side_effect=_raise), \
 			mock.patch.object(mod.frappe, "session", frappe._dict(user=user), create=True):
 			mod.require_payroll_company_access(company)
 		return only_for
