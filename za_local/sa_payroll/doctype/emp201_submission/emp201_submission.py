@@ -5,6 +5,8 @@ import hashlib
 
 import frappe
 from frappe import _
+
+from za_local.utils.payroll_permissions import require_payroll_company_access
 from frappe.model.document import Document
 from frappe.utils import add_months, flt, get_first_day, get_last_day, getdate
 
@@ -200,6 +202,7 @@ class EMP201Submission(Document):
 
 		if not self.company or not self.submission_period_start_date or not self.submission_period_end_date:
 			frappe.throw(_("Company and submission period dates are required to fetch data."))
+		require_payroll_company_access(self.company)
 
 		# Initialize local variables for calculation
 		gross_paye = 0
