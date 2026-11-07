@@ -704,6 +704,8 @@ def _after_migrate():
 	sync_sa_navigation()
 	ensure_sa_print_formats()
 	ensure_sa_vat_print_format_field_templates()
+	from za_local.sa_setup.fiscal_year_perms import ensure_hr_manager_fiscal_year_read
+	ensure_hr_manager_fiscal_year_read()
 
 
 def ensure_eti_payroll_settings_defaults():
