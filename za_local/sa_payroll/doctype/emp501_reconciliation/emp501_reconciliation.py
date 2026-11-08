@@ -387,7 +387,7 @@ class EMP501Reconciliation(Document):
 
 		return frappe.get_all(
 			"EMP201 Submission",
-			filters={"name": ["in", names], "docstatus": 1},
+			filters={"name": ["in", names], "company": self.company, "docstatus": 1},
 			fields=[
 				"name",
 				"submission_period_start_date",
@@ -416,6 +416,18 @@ class EMP501Reconciliation(Document):
 		]
 		duplicate_names = sorted({name for name in linked_names if linked_names.count(name) > 1})
 		actual_names = {row.name for row in self._get_linked_emp201_rows()}
+		invalid_linked_names = sorted(set(linked_names) - actual_names)
+		if invalid_linked_names:
+			details = [
+				_("Invalid EMP201 reference (not a submitted declaration of this company): {0}").format(name)
+				for name in invalid_linked_names
+			]
+			frappe.throw(
+				_("Linked EMP201 declarations are incomplete or inconsistent:<br><br>{0}").format(
+					"<br>".join(f"• {escape_html(detail)}" for detail in details)
+				),
+				title=_("Invalid EMP201 References"),
+			)
 		missing_names = sorted(expected_names - actual_names)
 		unexpected_names = sorted(actual_names - expected_names)
 
