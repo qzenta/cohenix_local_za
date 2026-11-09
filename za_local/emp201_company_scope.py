@@ -7,8 +7,8 @@ not acceptable, so this module scopes them to the Company values in their applic
 permissions and refuses everything else. (Governance rulings of 7 Nov 2026, E8 / G-7.)
 
 List and document (permission_query_conditions and has_permission hooks):
-- Exempt, behaviour exactly as before: Administrator and any user holding Payroll Manager or
-  Accounts User (the only roles that read EMP201 Submission today).
+- Exempt: Administrator only (named break-glass role). Payroll Manager and Accounts User are
+  scoped like every other role (Governance ruling of 9 Nov 2026, EMP201 residual closure).
 - Everyone else is scoped: only rows whose Company is in the user's applicable Company user
   permissions. No applicable permission means no rows. Empty and NULL Company never match.
 
@@ -27,7 +27,7 @@ import frappe
 from frappe import _
 
 DOCTYPE = "EMP201 Submission"
-LIST_DOC_EXEMPT_ROLES = ("Payroll Manager", "Accounts User")
+LIST_DOC_EXEMPT_ROLES = ()
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +48,7 @@ def allowed_companies_from_user_permissions(user_permissions, doctype=DOCTYPE):
 
 
 def is_list_doc_exempt(user, roles):
-	"""True for Administrator and for holders of Payroll Manager or Accounts User."""
+	"""True for Administrator only. LIST_DOC_EXEMPT_ROLES is empty, so no role grants an exemption."""
 	return user == "Administrator" or bool(set(LIST_DOC_EXEMPT_ROLES) & set(roles or ()))
 
 

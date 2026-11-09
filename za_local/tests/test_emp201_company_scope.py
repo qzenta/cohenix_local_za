@@ -3,6 +3,7 @@
 import unittest
 
 from za_local.emp201_company_scope import (
+	LIST_DOC_EXEMPT_ROLES,
 	allowed_companies_from_user_permissions,
 	build_company_condition,
 	company_allowed,
@@ -47,9 +48,13 @@ class TestEMP201CompanyScope(unittest.TestCase):
 		self.assertFalse(company_allowed("A", []))
 
 	def test_exemptions(self):
+		# Governance ruling of 9 Nov 2026: Administrator is the only exemption on the list and document paths.
+		self.assertEqual(LIST_DOC_EXEMPT_ROLES, ())
 		self.assertTrue(is_list_doc_exempt("Administrator", []))
-		self.assertTrue(is_list_doc_exempt("u", ["Accounts User"]))
-		self.assertTrue(is_list_doc_exempt("u", ["HR Manager", "Payroll Manager"]))
+		self.assertTrue(is_list_doc_exempt("Administrator", ["Accounts User"]))
+		self.assertFalse(is_list_doc_exempt("u", ["Accounts User"]))
+		self.assertFalse(is_list_doc_exempt("u", ["Payroll Manager"]))
+		self.assertFalse(is_list_doc_exempt("u", ["HR Manager", "Payroll Manager"]))
 		self.assertFalse(is_list_doc_exempt("u", ["HR Manager"]))
 		self.assertFalse(is_list_doc_exempt("u", ["HR Manager", "System Manager"]))
 		self.assertTrue(is_report_exempt("Administrator"))
