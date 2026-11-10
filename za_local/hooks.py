@@ -207,12 +207,14 @@ permission_query_conditions = {
 	"Contact": "za_local.party_link_permissions.get_permission_query_conditions",
 	"Address": "za_local.party_link_permissions.get_permission_query_conditions",
 	"EMP201 Submission": "za_local.emp201_company_scope.get_permission_query_conditions",
+	"EMP501 Reconciliation": "za_local.emp501_company_scope.get_permission_query_conditions",
 }
 
 has_permission = {
 	"Contact": "za_local.party_link_permissions.has_permission",
 	"Address": "za_local.party_link_permissions.has_permission",
 	"EMP201 Submission": "za_local.emp201_company_scope.has_permission",
+	"EMP501 Reconciliation": "za_local.emp501_company_scope.has_permission",
 }
 
 # Document Events for Specific Workflows
