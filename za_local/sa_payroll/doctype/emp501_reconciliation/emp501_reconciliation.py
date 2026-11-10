@@ -83,8 +83,33 @@ def get_period_dates(tax_year, reconciliation_period):
 
 class EMP501Reconciliation(Document):
 	def validate(self):
+		self.validate_company_bound_references()
 		self.validate_dates()  # This should be called after tax_year and reconciliation_period are set
 		self.calculate_totals()
+
+	def validate_company_bound_references(self):
+		"""EMP201 and IRP5 references must belong to this Company (reference integrity, every user).
+
+		A foreign, empty-Company or nonexistent reference gets Frappe's own link-validation refusal
+		(same class and "Could not find Row #N: <label>: <name>" form as _validate_links), so the three
+		cases cannot be told apart.
+		"""
+		checks = {
+			"emp201_submissions": ("emp201_submission", "EMP201 Submission", {"docstatus": 1}),
+			"irp5_certificates": ("irp5_certificate", "IRP5 Certificate", {}),
+		}
+		invalid = []
+		for row in self.get_all_children():
+			check = checks.get(row.parentfield)
+			if not check or not row.get(check[0]):
+				continue
+			fieldname, doctype, extra = check
+			name = row.get(fieldname)
+			if not self.company or not frappe.db.exists(doctype, {"name": name, "company": self.company, **extra}):
+				df = row.meta.get_field(fieldname)
+				invalid.append("{} #{}: {}: {}".format(_("Row"), row.idx, _(df.label, context=df.parent), name))
+		if invalid:
+			frappe.throw(_("Could not find {0}").format(", ".join(invalid)), frappe.LinkValidationError)
 
 	def _get_expected_emp201_period_starts(self):
 		if not self.from_date or not self.to_date:
@@ -224,6 +249,8 @@ class EMP501Reconciliation(Document):
 		linked_certificates = {}
 		draft_or_missing_status = []
 		invalid_references = []
+		# One message for another Company's or a nonexistent certificate: names no employee, certificate or Company.
+		invalid_company_reference = _("Invalid IRP5/IT3(a) certificate reference (not a certificate of this company)")
 		seen_certificate_names = set()
 		for row in self.irp5_certificates or []:
 			if not row.employee or not row.irp5_certificate:
@@ -236,8 +263,9 @@ class EMP501Reconciliation(Document):
 			seen_certificate_names.add(row.irp5_certificate)
 
 			certificate = certificates_by_name.get(row.irp5_certificate)
-			if not certificate:
-				draft_or_missing_status.append(row.employee_name or row.employee)
+			if not certificate or certificate.company != self.company:
+				if invalid_company_reference not in invalid_references:
+					invalid_references.append(invalid_company_reference)
 				continue
 			if certificate.docstatus != 1 or certificate.status != "Submitted":
 				draft_or_missing_status.append(row.employee_name or row.employee)

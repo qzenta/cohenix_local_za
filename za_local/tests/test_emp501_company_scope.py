@@ -9,6 +9,7 @@ from za_local.emp501_company_scope import (
 	build_company_condition,
 	company_allowed,
 	is_break_glass,
+	share_allowed,
 )
 
 
@@ -62,6 +63,17 @@ class TestEMP501CompanyScope(unittest.TestCase):
 		self.assertFalse(is_break_glass("u", ["HR Manager", "HR User", "Payroll Manager"]))
 		self.assertFalse(is_break_glass("u", []))
 		self.assertFalse(is_break_glass("u", None))
+
+	def test_share_allowed(self):
+		self.assertFalse(share_allowed(1, "u", ["HR Manager"], "A", ["A"]))
+		self.assertFalse(share_allowed(0, None, [], "A", ["A"]))
+		self.assertTrue(share_allowed(0, "u", ["HR Manager"], "A", ["A"]))
+		self.assertFalse(share_allowed(0, "u", ["HR Manager"], "B", ["A"]))
+		self.assertFalse(share_allowed(0, "u", ["HR User"], "", ["A"]))
+		self.assertFalse(share_allowed(0, "u", ["HR User"], None, ["A"]))
+		self.assertFalse(share_allowed(0, "u", ["HR User"], "A", []))
+		self.assertTrue(share_allowed(0, "u", ["System Manager"], "B", []))
+		self.assertTrue(share_allowed(0, "Administrator", [], None, []))
 
 
 if __name__ == "__main__":

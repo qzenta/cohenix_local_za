@@ -20,6 +20,7 @@ The has_permission hook can only deny. The SQL builder and the checks are pure f
 """
 
 import frappe
+from frappe import _
 
 DOCTYPE = "EMP501 Reconciliation"
 BREAK_GLASS_ROLES = ("System Manager",)
@@ -50,6 +51,20 @@ def is_break_glass(user, roles):
 def company_allowed(company, allowed):
 	"""True only for a non-empty Company that is in the allowed list. Empty and NULL never match."""
 	return bool(company) and company in (allowed or ())
+
+
+def share_allowed(everyone, target_user, target_roles, record_company, allowed):
+	"""True if a share of an EMP501 Reconciliation to target_user is permitted.
+
+	Never for an everyone share. Break-glass targets (Administrator, System Manager) always.
+	Any other target only when the record's non-empty Company is in the target's applicable Company
+	permissions, so a share can never widen access beyond the M-01 scope.
+	"""
+	if everyone or not target_user:
+		return False
+	if is_break_glass(target_user, target_roles):
+		return True
+	return company_allowed(record_company, allowed)
 
 
 def build_company_condition(allowed, escape):
@@ -86,3 +101,15 @@ def has_permission(doc, ptype=None, user=None):
 	if getattr(doc, "doctype", None) != DOCTYPE or is_break_glass(user, frappe.get_roles(user)):
 		return True
 	return company_allowed(doc.get("company"), _allowed_companies(user))
+
+
+def validate_docshare(doc, method=None):
+	"""doc_events validate hook for DocShare. A DocShare would otherwise bypass has_permission above."""
+	if doc.get("share_doctype") != DOCTYPE:
+		return
+	target = doc.get("user")
+	record_company = frappe.db.get_value(DOCTYPE, doc.get("share_name"), "company")
+	roles = frappe.get_roles(target) if target else ()
+	allowed = _allowed_companies(target) if target else []
+	if not share_allowed(doc.get("everyone"), target, roles, record_company, allowed):
+		frappe.throw(_("This record cannot be shared with that user."), frappe.PermissionError)

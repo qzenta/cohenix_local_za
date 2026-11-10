@@ -166,6 +166,9 @@ doc_events = {
     "Item": {
         "validate": "za_local.sa_vat.item_sync.sync_item_zero_rated_flag",
     },
+	"DocShare": {
+		"validate": "za_local.emp501_company_scope.validate_docshare",
+	},
 
 }
 
