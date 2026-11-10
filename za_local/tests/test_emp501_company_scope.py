@@ -8,6 +8,7 @@ from za_local.emp501_company_scope import (
 	allowed_companies_from_user_permissions,
 	build_company_condition,
 	company_allowed,
+	foreign_or_missing_reference_found,
 	is_break_glass,
 	share_allowed,
 )
@@ -74,6 +75,29 @@ class TestEMP501CompanyScope(unittest.TestCase):
 		self.assertFalse(share_allowed(0, "u", ["HR User"], "A", []))
 		self.assertTrue(share_allowed(0, "u", ["System Manager"], "B", []))
 		self.assertTrue(share_allowed(0, "Administrator", [], None, []))
+
+	def test_foreign_or_missing_reference_found(self):
+		known = {("EMP201 Submission", "own"), ("IRP5 Certificate", "own")}
+		calls = []
+
+		def exists(doctype, name, extra_filters):
+			calls.append((doctype, name, extra_filters))
+			return (doctype, name) in known
+
+		own = ("EMP201 Submission", "own", {"company": "A", "docstatus": 1})
+		self.assertFalse(foreign_or_missing_reference_found([], exists))
+		self.assertFalse(foreign_or_missing_reference_found(None, exists))
+		self.assertFalse(foreign_or_missing_reference_found([own, ("IRP5 Certificate", "own", {"company": "A"})], exists))
+		self.assertEqual(calls[0], own)
+		self.assertTrue(foreign_or_missing_reference_found([own, ("EMP201 Submission", "other", {"company": "A", "docstatus": 1})], exists))
+		self.assertTrue(foreign_or_missing_reference_found([("IRP5 Certificate", "missing", {"company": "A"})], exists))
+		self.assertTrue(foreign_or_missing_reference_found([("IRP5 Certificate", "missing", {}), ("EMP201 Submission", "missing", {})], exists))
+
+	def test_foreign_or_missing_reference_skips_empty_names(self):
+		def exists(doctype, name, extra_filters):
+			raise AssertionError("exists called for an empty name")
+
+		self.assertFalse(foreign_or_missing_reference_found([("EMP201 Submission", "", {}), ("IRP5 Certificate", None, {})], exists))
 
 
 if __name__ == "__main__":

@@ -67,6 +67,14 @@ def share_allowed(everyone, target_user, target_roles, record_company, allowed):
 	return company_allowed(record_company, allowed)
 
 
+def foreign_or_missing_reference_found(rows, exists):
+	"""True if any (doctype, name, extra_filters) row with a non-empty name fails exists(doctype, name, extra_filters).
+
+	exists is injected; no database access here. Rows with an empty name are skipped.
+	"""
+	return any(name and not exists(doctype, name, extra_filters) for doctype, name, extra_filters in rows or ())
+
+
 def build_company_condition(allowed, escape):
 	"""Permission query condition for EMP501 Reconciliation. Fails closed: '1 = 0' when nothing is allowed."""
 	allowed = [c for c in (allowed or ()) if c]
@@ -93,14 +101,24 @@ def get_permission_query_conditions(user=None, doctype=None):
 
 
 def has_permission(doc, ptype=None, user=None):
-	"""Controller check: False for a scoped user when the Company is empty or not permitted, else True.
+	"""Controller check: False for a scoped user when the Company is empty or not permitted, or (write,
+	create, submit) when an EMP201 or IRP5 reference is not a record of that Company; else True.
 
 	A has_permission hook can only deny (frappe.permissions.has_controller_permissions).
 	"""
 	user = user or frappe.session.user
 	if getattr(doc, "doctype", None) != DOCTYPE or is_break_glass(user, frappe.get_roles(user)):
 		return True
-	return company_allowed(doc.get("company"), _allowed_companies(user))
+	if not company_allowed(doc.get("company"), _allowed_companies(user)):
+		return False
+	if ptype in ("write", "create", "submit"):
+		# G-9e: runs before Frappe's _validate_links, so a foreign, empty-Company or nonexistent
+		# reference gets the same generic PermissionError. Filters mirror validate_company_bound_references.
+		company = doc.get("company")
+		rows = [("EMP201 Submission", row.get("emp201_submission"), {"company": company, "docstatus": 1}) for row in doc.get("emp201_submissions") or ()]
+		rows += [("IRP5 Certificate", row.get("irp5_certificate"), {"company": company}) for row in doc.get("irp5_certificates") or ()]
+		return not foreign_or_missing_reference_found(rows, lambda dt, name, filters: bool(frappe.db.exists(dt, {"name": name, **filters})))
+	return True
 
 
 def validate_docshare(doc, method=None):
