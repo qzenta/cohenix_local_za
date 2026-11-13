@@ -150,16 +150,7 @@ doc_events = {
 
     # Customer validation for SA VAT numbers
     "Customer": {
-        "validate": [
-            "za_local.custom.customer.validate",
-            # Gate B: Customer Group is mandatory (party_group_validation.py)
-            "za_local.party_group_validation.validate_customer_group",
-        ],
-    },
-
-    # Gate B: Supplier Group is mandatory (party_group_validation.py)
-    "Supplier": {
-        "validate": "za_local.party_group_validation.validate_supplier_group",
+        "validate": "za_local.custom.customer.validate",
     },
 
     # Keep ERPNext's zero-rated item contract aligned with za_local VAT categories
@@ -204,18 +195,12 @@ scheduler_events = {
 
 # Permissions
 # ------------------
-# Contact and Address visibility follows the Customer / Supplier they link to
-# (they have no Company field). See za_local/party_link_permissions.py.
 permission_query_conditions = {
-	"Contact": "za_local.party_link_permissions.get_permission_query_conditions",
-	"Address": "za_local.party_link_permissions.get_permission_query_conditions",
 	"EMP201 Submission": "za_local.emp201_company_scope.get_permission_query_conditions",
 	"EMP501 Reconciliation": "za_local.emp501_company_scope.get_permission_query_conditions",
 }
 
 has_permission = {
-	"Contact": "za_local.party_link_permissions.has_permission",
-	"Address": "za_local.party_link_permissions.has_permission",
 	"EMP201 Submission": "za_local.emp201_company_scope.has_permission",
 	"EMP501 Reconciliation": "za_local.emp501_company_scope.has_permission",
 }
