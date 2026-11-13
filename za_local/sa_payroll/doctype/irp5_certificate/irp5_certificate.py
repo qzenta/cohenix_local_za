@@ -6,11 +6,10 @@ from io import BytesIO
 
 import frappe
 from frappe import _
-
-from za_local.utils.payroll_permissions import require_payroll_company_access
 from frappe.model.document import Document
 from frappe.utils import cint, escape_html, flt, getdate, today
 
+from za_local.utils.payroll_permissions import require_payroll_company_access
 from za_local.utils.statutory_rates import get_rate_pack
 
 pdf_generation_available = False

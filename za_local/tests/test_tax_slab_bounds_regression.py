@@ -16,6 +16,7 @@ within one rand above a band top (strictly between L and L + 1) is under-taxed b
 the next rate x (income - L). It is never over-taxed. The last test pins that bound.
 """
 
+import itertools
 import json
 import random
 import unittest
@@ -131,7 +132,7 @@ class TestTaxSlabBoundsRegression(UnitTestCase):
 		for _slab_file, rates_file in FILE_PAIRS:
 			with self.subTest(rates_file=rates_file):
 				brackets = _brackets(rates_file)
-				for lower, upper in zip(brackets, brackets[1:], strict=False):
+				for lower, upper in itertools.pairwise(brackets):
 					width = Decimal(upper["amount_over"]) - Decimal(lower["amount_over"])
 					self.assertEqual(
 						Decimal(upper["base_tax"]),

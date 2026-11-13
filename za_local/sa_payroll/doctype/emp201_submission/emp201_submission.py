@@ -5,10 +5,10 @@ import hashlib
 
 import frappe
 from frappe import _
-
-from za_local.utils.payroll_permissions import require_payroll_company_access
 from frappe.model.document import Document
 from frappe.utils import add_months, flt, get_first_day, get_last_day, getdate
+
+from za_local.utils.payroll_permissions import require_payroll_company_access
 
 PAYE_CODES = {"4102", "4115"}
 UIF_CODES = {"4141"}
