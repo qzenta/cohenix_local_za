@@ -71,7 +71,23 @@ class SARSXMLGenerator:
 def generate_emp501_xml(emp501_name):
     """API endpoint to generate EMP501 XML"""
     # Require read permission on the reconciliation before loading payroll data.
-    frappe.has_permission("EMP501 Reconciliation", doc=emp501_name, throw=True)
+    message_log = list(frappe.local.message_log or [])
+    try:
+        frappe.has_permission("EMP501 Reconciliation", doc=emp501_name, throw=True)
+    except frappe.DoesNotExistError:
+        # A-08: a scoped user must not tell a missing name from a denied one. Re-run the same
+        # permission check on an unsaved stand-in (no Company), which fails exactly as a denied row.
+        from za_local.emp501_company_scope import is_break_glass
+
+        if is_break_glass(frappe.session.user, frappe.get_roles()):
+            raise
+        frappe.local.message_log = message_log
+        frappe.has_permission(
+            "EMP501 Reconciliation",
+            doc=frappe.get_doc({"doctype": "EMP501 Reconciliation", "name": emp501_name}),
+            throw=True,
+        )
+        raise
 
     emp501 = frappe.get_doc("EMP501 Reconciliation", emp501_name)
     generator = SARSXMLGenerator(emp501.company)

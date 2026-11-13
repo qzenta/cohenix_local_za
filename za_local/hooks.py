@@ -157,6 +157,9 @@ doc_events = {
     "Item": {
         "validate": "za_local.sa_vat.item_sync.sync_item_zero_rated_flag",
     },
+	"DocShare": {
+		"validate": "za_local.emp501_company_scope.validate_docshare",
+	},
 
 }
 
@@ -192,9 +195,15 @@ scheduler_events = {
 
 # Permissions
 # ------------------
-# permission_query_conditions = {
-#     "Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
+permission_query_conditions = {
+	"EMP201 Submission": "za_local.emp201_company_scope.get_permission_query_conditions",
+	"EMP501 Reconciliation": "za_local.emp501_company_scope.get_permission_query_conditions",
+}
+
+has_permission = {
+	"EMP201 Submission": "za_local.emp201_company_scope.has_permission",
+	"EMP501 Reconciliation": "za_local.emp501_company_scope.has_permission",
+}
 
 # Document Events for Specific Workflows
 # ------------------

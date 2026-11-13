@@ -8,6 +8,8 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import add_months, flt, get_first_day, get_last_day, getdate
 
+from za_local.utils.payroll_permissions import require_payroll_company_access
+
 PAYE_CODES = {"4102", "4115"}
 UIF_CODES = {"4141"}
 SDL_CODES = {"4142"}
@@ -48,6 +50,20 @@ def _get_emp201_bucket(component_name):
 
 
 def _looks_like_legacy_statutory_component(component_name, metadata):
+	"""Flag components that look statutory by name/flag but have never been
+	given a SARS payroll code at all - i.e. genuinely unmapped legacy data.
+
+	A component that already carries *any* za_sars_payroll_code is mapped by
+	definition, even if that code doesn't happen to fall into the PAYE/UIF/
+	SDL/ETI buckets EMP201 aggregates (e.g. 3601 normal income). Without this
+	guard, any correctly-coded component whose name merely contains a
+	substring like "eti" or "sdl" (e.g. "ETI Bonus", "SDL Training Rebate")
+	was incorrectly blocked from EMP201 generation - a false positive against
+	the control's actual intent of catching unmapped legacy components.
+	"""
+	if metadata.get("za_sars_payroll_code"):
+		return False
+
 	component_name_lower = (component_name or "").strip().lower()
 	tokens = (
 		"uif",
@@ -186,6 +202,7 @@ class EMP201Submission(Document):
 
 		if not self.company or not self.submission_period_start_date or not self.submission_period_end_date:
 			frappe.throw(_("Company and submission period dates are required to fetch data."))
+		require_payroll_company_access(self.company)
 
 		# Initialize local variables for calculation
 		gross_paye = 0

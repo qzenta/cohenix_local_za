@@ -1,6 +1,8 @@
 import frappe
 from frappe import _
 
+from za_local.utils.payroll_permissions import require_payroll_company_access
+
 RETIREMENT_FUND_CODES = {"4001", "4003", "4006"}
 
 
@@ -14,6 +16,7 @@ def _validate_filters(filters):
 	if not filters.company:
 		frappe.throw(_("Company is required."))
 	frappe.has_permission("Company", "read", doc=filters.company, throw=True)
+	require_payroll_company_access(filters.company)
 	return filters
 
 

@@ -9,7 +9,7 @@
  "filters": [],
  "idx": 0,
  "is_standard": "Yes",
- "modified": "2026-04-26 00:00:00.000000",
+ "modified": "2026-11-03 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "SA Payroll",
  "name": "Retirement Fund Deductions",
@@ -19,12 +19,6 @@
  "report_name": "Retirement Fund Deductions",
  "report_type": "Script Report",
  "roles": [
-  {
-   "role": "Payroll Manager"
-  },
-  {
-   "role": "Accounts Manager"
-  },
   {
    "role": "HR Manager"
   }

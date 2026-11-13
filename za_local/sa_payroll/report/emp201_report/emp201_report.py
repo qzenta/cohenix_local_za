@@ -4,6 +4,8 @@
 import frappe
 from frappe import _
 
+from za_local.emp201_company_scope import validate_report_company
+
 
 def execute(filters=None):
 	filters = _validate_filters(filters)
@@ -17,6 +19,7 @@ def _validate_filters(filters):
 	if not filters.company:
 		frappe.throw(_("Company is required."))
 	frappe.has_permission("Company", "read", doc=filters.company, throw=True)
+	validate_report_company(filters.company)
 	return filters
 
 

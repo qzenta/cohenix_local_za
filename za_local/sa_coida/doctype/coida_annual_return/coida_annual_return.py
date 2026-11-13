@@ -6,6 +6,7 @@ from frappe.model.document import Document
 from frappe.utils import add_days, add_years, flt, getdate
 
 from za_local.utils.coida_utils import get_coida_earnings_by_employee, get_company_industry_rate
+from za_local.utils.payroll_permissions import require_payroll_company_access
 from za_local.utils.statutory_rates import get_coida_annual_earnings_cap
 
 DIRECTOR_DESIGNATIONS = {"Director", "Executive Director", "Managing Director"}
@@ -70,6 +71,7 @@ class COIDAAnnualReturn(Document):
 		self.check_permission("write")
 		if not self.company or not self.from_date or not self.to_date:
 			frappe.throw(_("Company and assessment period are required to fetch employee data."))
+		require_payroll_company_access(self.company)
 		if not self.industry_class:
 			frappe.throw(_("Select the company's COIDA Industry Class before fetching employee data."))
 
