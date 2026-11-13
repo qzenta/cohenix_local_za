@@ -14,6 +14,8 @@ not 10 - a naive column-name-only fix would have returned 10 (the pre-fix
 regression this test guards against).
 """
 
+import unittest
+
 import frappe
 from frappe.utils import flt
 
@@ -25,6 +27,8 @@ class TestLeavePayoutOnTermination(UnitTestCase):
 	@classmethod
 	def setUpClass(cls):
 		super().setUpClass()
+		if not frappe.db.exists("Warehouse Type", "Transit"):
+			raise unittest.SkipTest("needs ERPNext default data (Warehouse Type Transit); runs on the bench")
 		frappe.set_user("Administrator")
 		cls._build_company()
 		cls._build_fiscal_year()

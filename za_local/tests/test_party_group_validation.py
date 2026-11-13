@@ -11,7 +11,7 @@ after every test, so nothing it creates is committed. The REST HTTP path is test
 import os
 import secrets
 from types import SimpleNamespace
-from unittest import TestCase
+from unittest import TestCase, skipIf
 
 from za_local.party_group_validation import blanks_group, is_blank, message
 
@@ -49,6 +49,10 @@ class TestRuleLogic(TestCase):
 		self.assertIn("Supplier Group is required", message("Supplier", None))
 
 
+@skipIf(
+	os.environ.get("GITHUB_ACTIONS") == "true",
+	"bench-only: needs the acceptance-dev site and Matrix fixtures, and destroys the shared frappe context",
+)
 class TestHookOnSite(TestCase):
 	@classmethod
 	def setUpClass(cls):
